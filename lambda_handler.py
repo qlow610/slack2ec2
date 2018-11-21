@@ -9,11 +9,13 @@ from __future__ import print_function
 
 #import
 import boto3
-import json
+import json 
 import pprint
+import re
 import logging
 import os
 import zlib
+import urllib.request
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -22,14 +24,14 @@ logger.setLevel(logging.INFO)
 #
 ec2 = boto3.client('ec2')
 ec3 = boto3.resource('ec2')
-instance_dict = {}
-message = {}
-Instance_list = []
-Body_list = []
 
-#メイン処理
+"""
+インスタンスリストの作成処理
+"""
 
 def dict_create():
+    global instance_dict
+    instance_dict = {}
     list1 = ec2.describe_instances(
         Filters = [{'Name':'tag:Slack','Values':['']}]
     )
@@ -45,45 +47,38 @@ def dict_create():
             instance_dict[name] = dict(zip(Dict_Key, Dict_value))
     return(instance_dict)
 
-def lambda_handler(event, context):
-    dict_create()
-    body = str(event['body'])
-    logger.info(body)
-    print(body)
-    if 'status' in body:
-        logger.info("MSG:StatusAction")
-        list1 = instance_dict.keys()
-        for j in list1:
-            logger.info(j)
-            Instance_list.append(j + ":" + instance_dict[j]['Status'] )
-        message = '\n'.join(Instance_list)
-    elif 'start' in body:
-        Action = "start"
-        list1 = instance_dict.keys()
-        for j in list1:
-            if j in body:
-                Target = instance_dict[j]['Name']
-                Targetid = instance_dict[Target]['instanceid']
-                response = ec2.start_instances(InstanceIds=[Targetid])
-                pprint.pprint(response)
-                if response is not None:
-                    logger.info(response)
-                    message = Action + " instance " + Target
-    elif 'stop' in body:
-        Action = "stop"
-        list1 = instance_dict.keys()
-        print(list1)
-        for j in list1:
-            if j in body:
-                Target = instance_dict[j]['Name']
-                Targetid = instance_dict[Target]['instanceid']
-                response = ec2.stop_instances(InstanceIds=[Targetid])
-                pprint.pprint(response)
-                if response is not None:
-                    logger.info(response)
-                    message = Action + " instance " + Target
-    else :
-        message = "usage: $server (status | help | [server name] start | [server name] stop)"
+def Instance_Status(instance_dict):
+    global message
+    list1 = instance_dict.keys()
+    Instance_list = []
+    for j in list1:
+        Instance_list.append(j + ":" + instance_dict[j]['Status'] )
+    message = ""
+    message = '\n'.join(Instance_list)
+    return(message)
+
+def Instance_Action(Action,body,instance_dict):
+    global message
+    list1 = instance_dict.keys()
+    for j in list1:
+        if instance_dict[j]['Name'] in body:
+            Target = instance_dict[j]['Name']
+            Targetid = instance_dict[Target]['instanceid']
+    if 'start' in Action:
+        response = ec2.start_instances(InstanceIds=[Targetid])
+        pprint.pprint(response)
+    if 'stop' in Action:
+        response = ec2.stop_instances(InstanceIds=[Targetid])
+        pprint.pprint(response)
+    else:
+        error_message = "No Target"
+    if error_message is not None:
+        message = error_message
+        print(message)
+        return(message)
+
+def whoname(body):
+    global user_id
     Body_list = [j for j in body.split('&') if 'user_id' in j]
     user_id = str(Body_list)
     user_id = user_id.replace('user_id=','')
@@ -91,9 +86,27 @@ def lambda_handler(event, context):
     user_id = user_id.replace(']','')
     user_id = user_id.replace("'","")
     user_id = "<@" + user_id + ">"
-    message = user_id + '\n' + message
-    message = json.dumps({'text': message})
+    return(user_id)
+
+#メイン処理
+
+def lambda_handler(event, context):
+    dict_create()
+    body = str(event['body'])
+    logger.info(event)
+    logger.info(instance_dict)
+    if 'status' in body:
+        Instance_Status(instance_dict)
+    elif 'start' in body:
+        Action = 'start'
+        Instance_Action(Action,body,instance_dict)
+    elif 'stop' in body:
+        Action = 'stop'
+        Instance_Action(Action,body,instance_dict)
+    whoname(body)
+    message_json = user_id + '\n' + message
+    message_json = json.dumps({'text': message_json})
     return {
         'statusCode': 200,
-        'body': message
+        'body': message_json
     }
