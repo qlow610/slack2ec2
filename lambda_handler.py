@@ -102,6 +102,8 @@ def lambda_handler(event, context):
     elif 'stop' in body:
         Action = 'stop'
         Instance_Action(Action,body,instance_dict)
+    else :
+        message = "$server (status | help | [server name] start | [server name] stop)"
     whoname(body)
     message_json = user_id + '\n' + message
     message_json = json.dumps({'text': message_json})
