@@ -38,12 +38,13 @@ def dict_create():
     for list2 in list1['Reservations']:
         for list3 in list2['Instances']:
             instanceid = list3['InstanceId']
+            NSG = list3['NetworkInterfaces'][0]['Groups'][0]['GroupId']
             Status = list3["State"]['Name']
             instance = ec3.Instance(id=instanceid)
             name_tag = [x['Value'] for x in instance.tags if x['Key'] == 'Name']
             name = name_tag[0] if len(name_tag) else ''
-            Dict_Key = ['instanceid','Name','Status']
-            Dict_value = [instanceid,name,Status]
+            Dict_Key = ['instanceid','Name','Status','NSG']
+            Dict_value = [instanceid,name,Status,NSG]
             instance_dict[name] = dict(zip(Dict_Key, Dict_value))
     return(instance_dict)
 
