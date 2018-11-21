@@ -67,15 +67,17 @@ def Instance_Action(Action,body,instance_dict):
     if 'start' in Action:
         response = ec2.start_instances(InstanceIds=[Targetid])
         pprint.pprint(response)
-    if 'stop' in Action:
+        Status = response['StartingInstances'][0]['CurrentState']['Name']
+    elif 'stop' in Action:
         response = ec2.stop_instances(InstanceIds=[Targetid])
         pprint.pprint(response)
+        Status = response['StoppingInstances'][0]['CurrentState']['Name']
     else:
-        error_message = "No Target"
-    if error_message is not None:
-        message = error_message
-        print(message)
-        return(message)
+        message = "No Target"
+    if response is not None:
+        message = "You " + Action + " " + Target + ". The current status is " + Status  + "."
+    print(message)
+    return(message)
 
 def whoname(body):
     global user_id
