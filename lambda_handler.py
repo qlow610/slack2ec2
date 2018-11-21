@@ -64,19 +64,16 @@ def Instance_Action(Action,body,instance_dict):
         if instance_dict[j]['Name'] in body:
             Target = instance_dict[j]['Name']
             Targetid = instance_dict[Target]['instanceid']
-    if 'start' in Action:
-        response = ec2.start_instances(InstanceIds=[Targetid])
-        pprint.pprint(response)
-        Status = response['StartingInstances'][0]['CurrentState']['Name']
-    elif 'stop' in Action:
-        response = ec2.stop_instances(InstanceIds=[Targetid])
-        pprint.pprint(response)
-        Status = response['StoppingInstances'][0]['CurrentState']['Name']
-    else:
-        message = "No Target"
-    if response is not None:
-        message = "You " + Action + " " + Target + ". The current status is " + Status  + "."
-    print(message)
+            if 'start' in Action:
+                response = ec2.start_instances(InstanceIds=[Targetid])
+                pprint.pprint(response)
+            elif 'stop' in Action:
+                response = ec2.stop_instances(InstanceIds=[Targetid])
+                pprint.pprint(response)
+            Status = response['StoppingInstances'][0]['CurrentState']['Name']
+            message = "You " + Action + " " + Target + ". The current status is " + Status  + "."
+        else:
+            message = "No Target.You're probably misspelled."
     return(message)
 
 def whoname(body):
