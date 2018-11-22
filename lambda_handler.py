@@ -56,6 +56,7 @@ def Instance_Status(instance_dict):
         Instance_list.append(j + ":" + instance_dict[j]['Status'] )
     message = ""
     message = '\n'.join(Instance_list)
+    print(type(message))
     return(message)
 
 def Instance_Action(Action,body,instance_dict):
@@ -88,6 +89,23 @@ def whoname(body):
     user_id = "<@" + user_id + ">"
     return(user_id)
 
+def NSG_list(instance_dict):
+    global message
+    list1 = instance_dict.keys()
+    list3 = []
+    for j in list1:
+        Tergetid = instance_dict[j]['NSG']
+        list1 = ec2.describe_security_groups(GroupIds=[Tergetid])
+        list2 = list1['SecurityGroups'][0]['IpPermissions'][0]['IpRanges']
+        Count = 0
+        for k in list2:
+            if Count is 0:
+                list3.append('[ ' + j + ' ]')
+                Count = 1
+            list3.append( k['CidrIp'])       
+    message = '\n'.join(list3)
+    return(message)
+
 #メイン処理
 
 def lambda_handler(event, context):
@@ -95,6 +113,7 @@ def lambda_handler(event, context):
     body = str(event['body'])
     logger.info(event)
     logger.info(instance_dict)
+    message = "$server (status | help | [server name] start | [server name] stop | ipshow)"
     if 'status' in body:
         Instance_Status(instance_dict)
     elif 'start' in body:
@@ -103,8 +122,8 @@ def lambda_handler(event, context):
     elif 'stop' in body:
         Action = 'stop'
         Instance_Action(Action,body,instance_dict)
-    else :
-        message = "$server (status | help | [server name] start | [server name] stop)"
+    elif 'ipshow' in body:
+        NSG_list(instance_dict)
     whoname(body)
     message_json = user_id + '\n' + message
     message_json = json.dumps({'text': message_json})
