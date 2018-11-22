@@ -127,7 +127,3 @@ def lambda_handler(event, context):
     whoname(body)
     message_json = user_id + '\n' + message
     message_json = json.dumps({'text': message_json})
-    return {
-        'statusCode': 200,
-        'body': message_json
-    }
