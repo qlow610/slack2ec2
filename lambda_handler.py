@@ -147,6 +147,3 @@ def lambda_handler(event, context):
         'statusCode': 200,
         'body': message_json
     }
-
-dict_create()
-NSG_list(instance_dict)
