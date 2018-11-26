@@ -31,8 +31,8 @@ def dict_create():
     list1 = ec2.describe_instances(
         Filters = [{'Name':'tag:Slack','Values':['']}]
     )
-    for list2 in list1['Reservations']:
-        for list3 in list2['Instances']:
+    for IPRange in list1['Reservations']:
+        for list3 in IPRange['Instances']:
             instanceid = list3['InstanceId']
             NSG = list3['NetworkInterfaces'][0]['Groups'][0]['GroupId']
             Status = list3["State"]['Name']
@@ -98,20 +98,22 @@ def NSG_list(instance_dict):
     list3 = []
     for j in list1:
         Tergetid = instance_dict[j]['NSG']
-        list1 = ec2.describe_security_groups(GroupIds=[Tergetid])
-        list2 = list1['SecurityGroups'][0]['IpPermissions'][0]['IpRanges']
+        Describe_SG = ec2.describe_security_groups(GroupIds=[Tergetid])
+        IPRange = Describe_SG['SecurityGroups'][0]['IpPermissions'][0]['IpRanges']
+        Port_list = Describe_SG['SecurityGroups'][0]['IpPermissions'][0]['FromPort']
         Count = 0
-        for k in list2:
+        for k in IPRange:
             if Count is 0:
-                list3.append('[ ' + j + ' ]')
+                list3.append('[ ' + j + ' ]' + '\n' + "Port :" + str(Port_list))
                 Count = 1
-            print(k.keys())
             if 'Description' in k.keys():
                 list3.append( k['CidrIp'] + " \n  Description :" +k['Description'] )  
             else:
                 list3.append( k['CidrIp'] + "\n  Description :") 
     message = '\n'.join(list3)
+    print(message)
     return(message)
+
 
 def NSG_add(instance_dict):
     global message
@@ -145,3 +147,6 @@ def lambda_handler(event, context):
         'statusCode': 200,
         'body': message_json
     }
+
+dict_create()
+NSG_list(instance_dict)
