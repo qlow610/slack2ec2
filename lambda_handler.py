@@ -46,9 +46,8 @@ def dict_create():
 
 def Instance_Status(instance_dict):
     global message
-    list1 = instance_dict.keys()
     Instance_list = []
-    for j in list1:
+    for j in instance_dict.keys():
         Instance_list.append(j + ":" + instance_dict[j]['Status'] )
     message = ""
     message = '\n'.join(Instance_list)
@@ -56,8 +55,7 @@ def Instance_Status(instance_dict):
 
 def Instance_Action(Action,body,instance_dict):
     global message
-    list1 = instance_dict.keys()
-    for j in list1:
+    for j in instance_dict.keys():
         if instance_dict[j]['Name'] in body:
             Target = instance_dict[j]['Name']
             Targetid = instance_dict[Target]['instanceid']
@@ -94,9 +92,8 @@ def NGmessage():
 
 def NSG_list(instance_dict):
     global message
-    list1 = instance_dict.keys()
-    list3 = []
-    for j in list1:
+    message = []
+    for j in instance_dict.keys():
         Tergetid = instance_dict[j]['NSG']
         Describe_SG = ec2.describe_security_groups(GroupIds=[Tergetid])
         IPRange = Describe_SG['SecurityGroups'][0]['IpPermissions'][0]['IpRanges']
@@ -104,13 +101,13 @@ def NSG_list(instance_dict):
         Count = 0
         for k in IPRange:
             if Count is 0:
-                list3.append('[ ' + j + ' ]' + '\n' + "Port :" + str(Port_list))
+                message.append('[ ' + j + ' ]' + '\n' + "Port :" + str(Port_list))
                 Count = 1
             if 'Description' in k.keys():
-                list3.append( k['CidrIp'] + " \n  Description :" +k['Description'] )  
+                message.append( k['CidrIp'] + " \n  Description :" +k['Description'] )  
             else:
-                list3.append( k['CidrIp'] + "\n  Description :") 
-    message = '\n'.join(list3)
+                message.append( k['CidrIp'] + "\n  Description :") 
+    message = '\n'.join(message)
     print(message)
     return(message)
 
@@ -131,12 +128,12 @@ def lambda_handler(event, context):
         logger.info(Instance_Status(instance_dict))
     elif 'start' in body:
         Action = 'start'
-        Instance_Action(Action,body,instance_dict)
+        logger.info(Instance_Action(Action,body,instance_dict))
     elif 'stop' in body:
         Action = 'stop'
-        Instance_Action(Action,body,instance_dict)
+        logger.info(Instance_Action(Action,body,instance_dict))
     elif 'ipshow' in body:
-        NSG_list(instance_dict)
+        logger.info(NSG_list(instance_dict))
     else:
         NGmessage()
     whoname(body)
