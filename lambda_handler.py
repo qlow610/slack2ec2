@@ -59,28 +59,31 @@ def Instance_Action(Action,body,instance_dict):
         if instance_dict[j]['Name'] in body:
             Target = instance_dict[j]['Name']
             Targetid = instance_dict[Target]['instanceid']
-            if 'start' in Action:
-                print('start')
-                try :
-                    response = ec2.start_instances(InstanceIds=[Targetid])
-                    Status = response['StartingInstances'][0]['CurrentState']['Name']
-                    success = 0
-                except:
-                    message = "No Target.You're probably misspelled."            
-            elif 'stop' in Action:
-                print('stop')
-                try:
-                    response = ec2.stop_instances(InstanceIds=[Targetid])
-                    pprint.pprint(response)
-                    Status = response['StoppingInstances'][0]['CurrentState']['Name']
-                    success = 0
-                except:
-                    message = "No Target.You're probably misspelled."            
-            else:
-                message = "No Target.You're probably misspelled."
-                success = 1
-            if success == 0:
-                message = "You " + Action + " " + Target + ". The current status is " + Status  + "."
+        else :
+            message = "No Target.You're probably misspelled."
+            success = 1
+        if 'start' in Action:
+            print('start')
+            try :
+                response = ec2.start_instances(InstanceIds=[Targetid])
+                Status = response['StartingInstances'][0]['CurrentState']['Name']
+                success = 0
+            except:
+                message = "No Target.You're probably misspelled."            
+        elif 'stop' in Action:
+            print('stop')
+            try:
+                response = ec2.stop_instances(InstanceIds=[Targetid])
+                pprint.pprint(response)
+                Status = response['StoppingInstances'][0]['CurrentState']['Name']
+                success = 0
+            except:
+                message = "No Target.You're probably misspelled."            
+        else:
+            message = "No Target.You're probably misspelled."
+            success = 1
+        if success == 0:
+            message = "You " + Action + " " + Target + ". The current status is " + Status  + "."
     return(message)
 
 def whoname(body):
@@ -95,7 +98,7 @@ def whoname(body):
 
 def NGmessage():
     global message
-    message = "$server (status | help | [server name] start | [server name] stop | ipshow | ipadd -FromPort xx -IpRanges xx.xx.xx.xx/xx -Description xxxx"
+    message = "$server (status | help | [server name] start | [server name] stop | ipshow | ipadd/ipdell [server name] -FromPort xx -IpRanges xx.xx.xx.xx/xx -Description xxxx"
     return(message)
 
 def NSG_list(instance_dict):
@@ -121,7 +124,7 @@ def NSG_list(instance_dict):
     print(message)
     return(message)
 
-def Bodysplit(body):
+def Bodysplit(Action,body):
     global FPort
     global IpRange
     global Description
@@ -135,8 +138,12 @@ def Bodysplit(body):
     FPort = int(Body_list[FromPortNum])
     IpPangesNum = (Body_list.index("-IpRanges") + 1)
     IpRange = (Body_list[IpPangesNum]).replace('%2F','/')
-    DescriptionNum = (Body_list.index("-Description") + 1)
-    Description = Body_list[DescriptionNum]
+    print(IpRange)
+    if 'ipadd' in  Action:
+        DescriptionNum = (Body_list.index("-Description") + 1)
+        Description = Body_list[DescriptionNum]
+    else:
+        Description = ""
     return(FPort,IpRange,Description)
 
 
@@ -149,29 +156,58 @@ def NSG_add(body,instance_dict,FPort,IpRange,Description):
             Tergetid = instance_dict[j]['NSG']
             print(Tergetid)
             security_group = ec3.SecurityGroup(Tergetid)
-            try:
-                response = security_group.authorize_ingress(
-                DryRun=False,
-                IpPermissions=[
-                    {
-                        'FromPort': FPort,
-                        'IpProtocol': 'tcp',
-                        'IpRanges': [
-                            {
-                                'CidrIp': IpRange,
-                                'Description': Description
-                                },
-                                ],
-                                'ToPort': FPort,
-                                }
-                                ]
-                                )
-                logger.info(response)
-                message = "NSG add Success"
-            except:
-                message = "NSG add Failed"
         else:
             message = "No Target.You're probably misspelled."
+    try:
+        response = security_group.authorize_ingress(
+            DryRun=False,
+            IpPermissions=[
+                {
+                    'FromPort': FPort,
+                    'IpProtocol': 'tcp',
+                    'IpRanges': [
+                        {
+                            'CidrIp': IpRange,
+                            'Description': Description
+                            },
+                            ],
+                            'ToPort': FPort,
+                            }])
+        logger.info(response)
+        message = "NSG add Success"
+    except:
+        message = "NSG add Failed"
+    return(message)
+
+def NSG_dell(body,instance_dict,FPort,IpRange):
+    global message
+    for j in instance_dict.keys():
+        if instance_dict[j]['Name'] in body:
+            Target = instance_dict[j]['Name']
+            print(Target)
+            Tergetid = instance_dict[j]['NSG']
+            print(Tergetid)
+            security_group = ec3.SecurityGroup(Tergetid)
+        else:
+            message = "No Target.You're probably misspelled."
+    try:
+        response = security_group.revoke_ingress(
+            DryRun=False,
+            IpPermissions=[
+                {
+                    'FromPort': FPort,
+                    'IpProtocol': 'tcp',
+                    'IpRanges': [
+                        {
+                            'CidrIp': IpRange
+                            },
+                            ],
+                            'ToPort': FPort
+                            }])
+        logger.info(response)
+        message = "NSG dell Success"
+    except:
+        message = "NSG dell Failed"
     return(message)
 
 #メイン処理
@@ -194,8 +230,13 @@ def lambda_handler(event, context):
         logger.info(NSG_list(instance_dict))
     elif "ipadd" in body:
         print("ipadd")
-        logger.info(Bodysplit(body))
+        Action = "ipadd"
+        logger.info(Bodysplit(Action,body))
         logger.info(NSG_add(body,instance_dict,FPort,IpRange,Description))
+    elif "ipdell" in body:
+        Action = 'ipdell'
+        logger.info(Bodysplit(Action,body))
+        logger.info(NSG_dell(body,instance_dict,FPort,IpRange))
     else:
         NGmessage()
     whoname(body)
