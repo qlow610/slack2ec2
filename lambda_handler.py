@@ -61,17 +61,26 @@ def Instance_Action(Action,body,instance_dict):
             Targetid = instance_dict[Target]['instanceid']
             if 'start' in Action:
                 print('start')
-                response = ec2.start_instances(InstanceIds=[Targetid])
-                pprint.pprint(response)
-                Status = response['StartingInstances'][0]['CurrentState']['Name']
+                try :
+                    response = ec2.start_instances(InstanceIds=[Targetid])
+                    Status = response['StartingInstances'][0]['CurrentState']['Name']
+                    success = 0
+                except:
+                    message = "No Target.You're probably misspelled."            
             elif 'stop' in Action:
                 print('stop')
-                response = ec2.stop_instances(InstanceIds=[Targetid])
-                pprint.pprint(response)
-                Status = response['StoppingInstances'][0]['CurrentState']['Name']
+                try:
+                    response = ec2.stop_instances(InstanceIds=[Targetid])
+                    pprint.pprint(response)
+                    Status = response['StoppingInstances'][0]['CurrentState']['Name']
+                    success = 0
+                except:
+                    message = "No Target.You're probably misspelled."            
             else:
                 message = "No Target.You're probably misspelled."
-            message = "You " + Action + " " + Target + ". The current status is " + Status  + "."
+                success = 1
+            if success == 0:
+                message = "You " + Action + " " + Target + ". The current status is " + Status  + "."
     return(message)
 
 def whoname(body):
@@ -79,15 +88,14 @@ def whoname(body):
     Body_list = [j for j in body.split('&') if 'user_id' in j]
     user_id = str(Body_list)
     user_id = user_id.replace('user_id=','')
-    user_id = user_id.replace('[','')
-    user_id = user_id.replace(']','')
-    user_id = user_id.replace("'","")
+    del_table = str.maketrans('', '', "[]'")
+    user_id = user_id.translate(del_table)
     user_id = "<@" + user_id + ">"
     return(user_id)
 
 def NGmessage():
     global message
-    message = "$server (status | help | [server name] start | [server name] stop | ipshow)"
+    message = "$server (status | help | [server name] start | [server name] stop | ipshow | ipadd -FromPort xx -IpRanges xx.xx.xx.xx/xx -Description xxxx"
     return(message)
 
 def NSG_list(instance_dict):
@@ -96,26 +104,75 @@ def NSG_list(instance_dict):
     for j in instance_dict.keys():
         Tergetid = instance_dict[j]['NSG']
         Describe_SG = ec2.describe_security_groups(GroupIds=[Tergetid])
-        IPRange = Describe_SG['SecurityGroups'][0]['IpPermissions'][0]['IpRanges']
-        Port_list = Describe_SG['SecurityGroups'][0]['IpPermissions'][0]['FromPort']
+        IpPermission = Describe_SG['SecurityGroups'][0]['IpPermissions']
         Count = 0
-        for k in IPRange:
-            if Count is 0:
-                message.append('[ ' + j + ' ]' + '\n' + "Port :" + str(Port_list))
-                Count = 1
-            if 'Description' in k.keys():
-                message.append( k['CidrIp'] + " \n  Description :" +k['Description'] )  
-            else:
-                message.append( k['CidrIp'] + "\n  Description :") 
+        for Iptable in IpPermission:
+            IPRange = Iptable['IpRanges']
+            Port_list = Iptable['FromPort']
+            for k in IPRange:
+                if Count is 0:
+                    message.append('[ ' + j + ' ]' + '\n'+"SGID: "+  Tergetid)
+                    Count = 1
+                if 'Description' in k.keys():
+                    message.append("Port :" + str(Port_list) + '\n' + k['CidrIp'] + " \n  Description :" +k['Description'] )  
+                else:
+                    message.append( k['CidrIp'] + "\n  Description :") 
     message = '\n'.join(message)
     print(message)
     return(message)
 
+def Bodysplit(body):
+    global FPort
+    global IpRange
+    global Description
+    Body_list = [j for j in body.split('&') if 'text' in j]
+    Body_list = str(Body_list)
+    del_table = str.maketrans('', '', "[]'")
+    Body_list = Body_list.translate(del_table)
+    Body_list = [j for j in str(Body_list).split('+')]
+    print(Body_list)
+    FromPortNum = (Body_list.index("-FromPort") + 1)
+    FPort = int(Body_list[FromPortNum])
+    IpPangesNum = (Body_list.index("-IpRanges") + 1)
+    IpRange = (Body_list[IpPangesNum]).replace('%2F','/')
+    DescriptionNum = (Body_list.index("-Description") + 1)
+    Description = Body_list[DescriptionNum]
+    return(FPort,IpRange,Description)
 
-def NSG_add(instance_dict):
+
+def NSG_add(body,instance_dict,FPort,IpRange,Description):
     global message
-    list1 = instance_dict.keys()
-
+    for j in instance_dict.keys():
+        if instance_dict[j]['Name'] in body:
+            Target = instance_dict[j]['Name']
+            print(Target)
+            Tergetid = instance_dict[j]['NSG']
+            print(Tergetid)
+            security_group = ec3.SecurityGroup(Tergetid)
+            try:
+                response = security_group.authorize_ingress(
+                DryRun=False,
+                IpPermissions=[
+                    {
+                        'FromPort': FPort,
+                        'IpProtocol': 'tcp',
+                        'IpRanges': [
+                            {
+                                'CidrIp': IpRange,
+                                'Description': Description
+                                },
+                                ],
+                                'ToPort': FPort,
+                                }
+                                ]
+                                )
+                logger.info(response)
+                message = "NSG add Success"
+            except:
+                message = "NSG add Failed"
+        else:
+            message = "No Target.You're probably misspelled."
+    return(message)
 
 #メイン処理
 
@@ -123,6 +180,7 @@ def lambda_handler(event, context):
     dict_create()
     body = str(event['body'])
     logger.info(event)
+    print(body)
     logger.info(instance_dict)
     if 'status' in body:
         logger.info(Instance_Status(instance_dict))
@@ -134,6 +192,10 @@ def lambda_handler(event, context):
         logger.info(Instance_Action(Action,body,instance_dict))
     elif 'ipshow' in body:
         logger.info(NSG_list(instance_dict))
+    elif "ipadd" in body:
+        print("ipadd")
+        logger.info(Bodysplit(body))
+        logger.info(NSG_add(body,instance_dict,FPort,IpRange,Description))
     else:
         NGmessage()
     whoname(body)
