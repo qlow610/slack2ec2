@@ -62,28 +62,28 @@ def Instance_Action(Action,body,instance_dict):
         else :
             message = "No Target.You're probably misspelled."
             success = 1
-        if 'start' in Action:
-            print('start')
-            try :
-                response = ec2.start_instances(InstanceIds=[Targetid])
-                Status = response['StartingInstances'][0]['CurrentState']['Name']
-                success = 0
-            except:
-                message = "No Target.You're probably misspelled."            
-        elif 'stop' in Action:
-            print('stop')
-            try:
-                response = ec2.stop_instances(InstanceIds=[Targetid])
-                pprint.pprint(response)
-                Status = response['StoppingInstances'][0]['CurrentState']['Name']
-                success = 0
-            except:
-                message = "No Target.You're probably misspelled."            
-        else:
-            message = "No Target.You're probably misspelled."
-            success = 1
-        if success == 0:
-            message = "You " + Action + " " + Target + ". The current status is " + Status  + "."
+    if 'start' in Action:
+        print('start')
+        try :
+            response = ec2.start_instances(InstanceIds=[Targetid])
+            Status = response['StartingInstances'][0]['CurrentState']['Name']
+            success = 0
+        except:
+            message = "No Target.You're probably misspelled."            
+    elif 'stop' in Action:
+        print('stop')
+        try:
+            response = ec2.stop_instances(InstanceIds=[Targetid])
+            pprint.pprint(response)
+            Status = response['StoppingInstances'][0]['CurrentState']['Name']
+            success = 0
+        except:
+            message = "No Target.You're probably misspelled."            
+    else:
+        message = "No Target.You're probably misspelled."
+        success = 1
+    if success == 0:
+        message = "You " + Action + " " + Target + ". The current status is " + Status  + "."
     return(message)
 
 def whoname(body):
@@ -175,6 +175,7 @@ def NSG_add(body,instance_dict,FPort,IpRange,Description):
                             }])
         logger.info(response)
         message = "NSG add Success"
+        
     except:
         message = "NSG add Failed"
     return(message)
