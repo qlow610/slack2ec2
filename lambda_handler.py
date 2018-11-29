@@ -27,6 +27,8 @@ ec3 = boto3.resource('ec2')
 
 def dict_create():
     global instance_dict
+    global message 
+    message = ""
     instance_dict = {}
     list1 = ec2.describe_instances(
         Filters = [{'Name':'tag:Slack','Values':['']}]
@@ -103,6 +105,7 @@ def NGmessage():
 
 def NSG_list(instance_dict):
     global message
+    NSG_dict = {}
     message = []
     for j in instance_dict.keys():
         Tergetid = instance_dict[j]['NSG']
@@ -111,17 +114,51 @@ def NSG_list(instance_dict):
         Count = 0
         for Iptable in IpPermission:
             IPRange = Iptable['IpRanges']
-            Port_list = Iptable['FromPort']
+            #Count = Count + i
+            if Iptable['FromPort'] is 0:
+                PortNo = "0"
+            else:
+                PortNo = str(Iptable['FromPort'])
             for k in IPRange:
-                if Count is 0:
-                    message.append('[ ' + j + ' ]' + '\n'+"SGID: "+  Tergetid)
-                    Count = 1
-                if 'Description' in k.keys():
-                    message.append("Port :" + str(Port_list) + '\n' + k['CidrIp'] + " \n  Description :" +k['Description'] )  
+                CiderIp = k['CidrIp']
+                if 'Description' not in k.keys():
+                    Description = '-'
                 else:
-                    message.append( k['CidrIp'] + "\n  Description :") 
-    message = '\n'.join(message)
-    print(message)
+                    Description = k['Description']
+                temp_list =(CiderIp,Description)
+                if j not in NSG_dict.keys():
+                    NSG_dict.setdefault(PortNo,temp_list)
+                else:
+                    NSG_dict[PortNo].extend(temp_list)
+                if Count is 0:
+                    temp_message = [
+                    {
+                        "fallback":"SecrutiGroup List",
+                        "pretext": j,
+                        "color":"#A9E2F3",
+                        "fields":[
+                        {
+                        "title":CiderIp,
+                        "value":"PortNo:" + PortNo +'\n' + "Description:" + Description
+                        }
+                    ]
+                    }
+                    ]
+                    Count = 1
+                else:
+                    temp_message = [
+                    {
+                        "fallback":"SecrutiGroup List",
+                        "color":"#A9E2F3",
+                        "fields":[
+                        {
+                        "title":CiderIp,
+                        "value":"PortNo:" + PortNo +'\n' + "Description:" + Description
+                        }
+                    ]
+                    }
+                    ]                        
+                message.extend(temp_message)
     return(message)
 
 def Bodysplit(Action,body):
@@ -175,7 +212,6 @@ def NSG_add(body,instance_dict,FPort,IpRange,Description):
                             }])
         logger.info(response)
         message = "NSG add Success"
-        
     except:
         message = "NSG add Failed"
     return(message)
@@ -241,8 +277,15 @@ def lambda_handler(event, context):
     else:
         NGmessage()
     whoname(body)
-    message_json = user_id + '\n' + message
-    message_json = json.dumps({'text': message_json})
+    if "ipshow" in body:
+        message_json = json.dumps(
+            {
+                'text': user_id,
+                'attachments': message}
+            )
+    else:
+        message_json = user_id + '\n' + message    
+        message_json = json.dumps({'text': message_json})
     pprint.pprint(message_json)
     return {
         'statusCode': 200,
