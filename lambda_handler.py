@@ -107,6 +107,8 @@ def NSG_list(instance_dict):
     global message
     NSG_dict = {}
     message = []
+    temp_fields = []
+    temp_list2 = []
     for j in instance_dict.keys():
         Tergetid = instance_dict[j]['NSG']
         Describe_SG = ec2.describe_security_groups(GroupIds=[Tergetid])
@@ -130,35 +132,31 @@ def NSG_list(instance_dict):
                     NSG_dict.setdefault(PortNo,temp_list)
                 else:
                     NSG_dict[PortNo].extend(temp_list)
-                if Count is 0:
-                    temp_message = [
-                    {
-                        "fallback":"SecrutiGroup List",
-                        "pretext": j,
-                        "color":"#A9E2F3",
-                        "fields":[
-                        {
-                        "title":CiderIp,
-                        "value":"PortNo:" + PortNo +'\n' + "Description:" + Description
-                        }
-                    ]
+                temp_fields = [{
+                    "title":CiderIp,
+                    "value":"PortNo:" + PortNo +'\n' + "Description:" + Description,
+                    "short": "true"
+                }]
+                temp_list2.extend(temp_fields)
+        if Count is 0:
+            temp_message = [
+                {
+                    "fallback":"SecrutiGroup List",
+                    "pretext": j,
+                    "color":"#A9E2F3",
+                    "fields":temp_list2
                     }
                     ]
-                    Count = 1
-                else:
-                    temp_message = [
-                    {
-                        "fallback":"SecrutiGroup List",
-                        "color":"#A9E2F3",
-                        "fields":[
-                        {
-                        "title":CiderIp,
-                        "value":"PortNo:" + PortNo +'\n' + "Description:" + Description
-                        }
-                    ]
+            Count = 1
+        else:
+            temp_message = [
+                {
+                    "fallback":"SecrutiGroup List",
+                    "color":"#A9E2F3",
+                    "fields":temp_list2
                     }
                     ]                        
-                message.extend(temp_message)
+        message.extend(temp_message)
     return(message)
 
 def Bodysplit(Action,body):
