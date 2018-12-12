@@ -250,30 +250,37 @@ def NSG_dell(body,instance_dict,FPort,IpRange):
 def lambda_handler(event, context):
     dict_create()
     body = str(event['body'])
-    logger.info(event)
-    print(body)
-    logger.info(instance_dict)
+    logger.info("Event: " + str(body))
+    logger.info("Event: " + str(instance_dict))
     if 'status' in body:
-        logger.info(Instance_Status(instance_dict))
+        Instance_Status(instance_dict)
+        logger.info("Action : Status ,Event: "+ str(message))
     elif 'start' in body:
         Action = 'start'
-        logger.info(Instance_Action(Action,body,instance_dict))
+        Instance_Action(Action,body,instance_dict)
+        logger.info("Action : Start ,Event: "+ str(message))
     elif 'stop' in body:
         Action = 'stop'
-        logger.info(Instance_Action(Action,body,instance_dict))
+        Instance_Action(Action,body,instance_dict)
+        logger.info("Action : Stop ,Event: "+ str(message))
     elif 'ipshow' in body:
-        logger.info(NSG_list(instance_dict))
+        NSG_list(instance_dict)
+        logger.info("Action : NSG_list ,Event: "+ str(message))
     elif "ipadd" in body:
-        print("ipadd")
         Action = "ipadd"
-        logger.info(Bodysplit(Action,body))
-        logger.info(NSG_add(body,instance_dict,FPort,IpRange,Description))
+        Bodysplit(Action,body)
+        logger.info("Action : ipadd ,Event : Fport" + str(FPort) +", IpRange :" + str(IpRange) + ", Description :" + str(Description))
+        NSG_add(body,instance_dict,FPort,IpRange,Description)
+        logger.info("Event : " + str(message))
     elif "ipdell" in body:
         Action = 'ipdell'
-        logger.info(Bodysplit(Action,body))
-        logger.info(NSG_dell(body,instance_dict,FPort,IpRange))
+        Bodysplit(Action,body)
+        logger.info("Action : ipadd ,Event : Fport" + str(FPort) +", IpRange :" + str(IpRange) + ", Description :" + str(Description))
+        NSG_dell(body,instance_dict,FPort,IpRange)
+        logger.info("Event : " + str(message))
     else:
         NGmessage()
+        logger.info("Event :" + str(message))
     whoname(body)
     if "ipshow" in body:
         message_json = json.dumps(
@@ -284,7 +291,7 @@ def lambda_handler(event, context):
     else:
         message_json = user_id + '\n' + message    
         message_json = json.dumps({'text': message_json})
-    pprint.pprint(message_json)
+    logger.info("Event :" + str(message_json))
     return {
         'statusCode': 200,
         'body': message_json
