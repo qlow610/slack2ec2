@@ -76,7 +76,6 @@ def Instance_Action(Action,body,instance_dict):
         print('stop')
         try:
             response = ec2.stop_instances(InstanceIds=[Targetid])
-            pprint.pprint(response)
             Status = response['StoppingInstances'][0]['CurrentState']['Name']
             success = 0
         except:
@@ -116,7 +115,6 @@ def NSG_list(instance_dict):
         Count = 0
         for Iptable in IpPermission:
             IPRange = Iptable['IpRanges']
-            #Count = Count + i
             if Iptable['FromPort'] is 0:
                 PortNo = "0"
             else:
