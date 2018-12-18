@@ -24,28 +24,59 @@ ec2 = boto3.client('ec2')
 ec3 = boto3.resource('ec2')
 
 class dictcreate:
-    def __init__(self):
+    def __init__(self,Action):
+        global dict_i
         dict_i = {}
-
-    def instancedict(self):
         list1 = ec2.describe_instances(
             Filters = [{'Name':'tag:Slack','Values':['']}]
         )
-        #list2 = [ x['Instances'] for x in list1['Reservations'] ]
         instanceid = [x['Instances'][0]['InstanceId'] for x in list1['Reservations']]
-        NSG = [x['Instances'][0]['NetworkInterfaces'][0]['Groups'][0]['GroupId'] for x in list1['Reservations'] ]
-        Status = [x['Instances'][0]['State']['Name'] for x in list1['Reservations']]
-        Name = [y['Value'] for x in instanceid for y in ec3.Instance(id=x).tags if y['Key'] == 'Name']
-        Dict_key = ['instanceid','Name','Status','NSG']
-        #Dict_item = [ for x in instanceid for y in NSG for z in Status for aa in Name]
-            #dict_i[instanceid] = {
-            #    'instanceid' : instanceid[x],
-            #    'Name' : Name[x],
-            #    'Status' : Status[x],
-            #    'NSG' : NSG[x]
-            #}
-        #print(dict_i)
-        #return(dict_i)
+        self.instanceid = instanceid
+        self.list1 = list1
+        self.Action = Action
 
-test1 = dictcreate()
-test1.instancedict()
+    def status(self,Action):
+        Name = [y['Value'] for x in self.instanceid for y in ec3.Instance(id=x).tags if y['Key'] == 'Name']
+        Status = [x['Instances'][0]['State']['Name'] for x in self.instanceid['Reservations']]
+        dict_i = [(x,Status[Name.index(x)]) for x in Name]
+        return(dict_i)
+
+    def instancedict(self):
+        NSG = [x['Instances'][0]['NetworkInterfaces'][0]['Groups'][0]['GroupId'] for x in self.list1['Reservations'] ]
+        Status = [x['Instances'][0]['State']['Name'] for x in self.list1['Reservations']]
+        Name = [y['Value'] for x in self.instanceid for y in ec3.Instance(id=x).tags if y['Key'] == 'Name']
+        Dict_key = ['instanceid','NSG','Status','Name']
+        Dict_item = [ dict((zip(Dict_key,(x,NSG[self.instanceid.index(x)],Status[self.instanceid.index(x)],Name[self.instanceid.index(x)])))) for x in self.instanceid ]       
+        for x in Name:
+            dict_i[x] = Dict_item[Name.index(x)]
+        return(dict_i)
+
+
+class actioncheck:
+    def __init__(self,body):
+        self.body = body
+        global Action
+    
+    def acitonchekc(self):
+        if 'status' in self.body:
+            Action = 'status'
+            dictcreate.status(self,Action)
+            print(dict_i)
+
+
+def lambda_handler(event, context):
+    body = str(event['body'])
+    acc = actioncheck(body)
+    acc.acitonchekc()
+    #logger.info("Event: " + str(body))
+    #logger.info("Event: " + str(instance_dict))
+
+
+
+
+
+event = {
+    'body':'$server Instance status'
+}  
+context = "test"
+lambda_handler(event,context)
