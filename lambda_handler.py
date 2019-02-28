@@ -1,4 +1,4 @@
-# coding:utf-8
+#coding:utf-8
 
 #############################
 #language pytho
@@ -20,10 +20,13 @@ import urllib.request
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+token = os.environ['SLACK_TOKEN']
 
 #
 ec2 = boto3.client('ec2')
 ec3 = boto3.resource('ec2')
+
+#instance一覧作成
 
 def dict_create():
     global instance_dict
@@ -46,6 +49,8 @@ def dict_create():
             instance_dict[name] = dict(zip(Dict_Key, Dict_value))
     return(instance_dict)
 
+# Instance状態取得
+
 def Instance_Status(instance_dict):
     global message
     Instance_list = []
@@ -54,6 +59,8 @@ def Instance_Status(instance_dict):
     message = ""
     message = '\n'.join(Instance_list)
     return(message)
+
+#Instance関連処理
 
 def Instance_Action(Action,body,instance_dict):
     global message
@@ -87,6 +94,8 @@ def Instance_Action(Action,body,instance_dict):
         message = "You " + Action + " " + Target + ". The current status is " + Status  + "."
     return(message)
 
+#slack userid
+
 def whoname(body):
     global user_id
     Body_list = [j for j in body.split('&') if 'user_id' in j]
@@ -97,10 +106,14 @@ def whoname(body):
     user_id = "<@" + user_id + ">"
     return(user_id)
 
+# Error時の処理
+
 def NGmessage():
     global message
     message = "$server (status | help | [server name] start | [server name] stop | ipshow | ipadd/ipdell [server name] -FromPort xx -IpRanges xx.xx.xx.xx/xx -Description xxxx"
     return(message)
+
+# SGリスト
 
 def NSG_list(instance_dict):
     global message
@@ -157,6 +170,8 @@ def NSG_list(instance_dict):
         message.extend(temp_message)
     return(message)
 
+# Bodyを分割し、FromPortNumber/IpRangeNum/Descriptionに
+
 def Bodysplit(Action,body):
     global FPort
     global IpRange
@@ -179,8 +194,9 @@ def Bodysplit(Action,body):
         Description = ""
     return(FPort,IpRange,Description)
 
+#NSG関連処理
 
-def NSG_add(body,instance_dict,FPort,IpRange,Description):
+def NSG_Action(Action,body,instance_dict,FPort,IpRange,Description):
     global message
     for j in instance_dict.keys():
         if instance_dict[j]['Name'] in body:
@@ -191,56 +207,45 @@ def NSG_add(body,instance_dict,FPort,IpRange,Description):
             security_group = ec3.SecurityGroup(Tergetid)
         else:
             message = "No Target.You're probably misspelled."
-    try:
-        response = security_group.authorize_ingress(
-            DryRun=False,
-            IpPermissions=[
-                {
-                    'FromPort': FPort,
-                    'IpProtocol': 'tcp',
-                    'IpRanges': [
-                        {
-                            'CidrIp': IpRange,
-                            'Description': Description
-                            },
-                            ],
-                            'ToPort': FPort,
-                            }])
-        logger.info(response)
-        message = "NSG add Success"
-    except:
-        message = "NSG add Failed"
-    return(message)
-
-def NSG_dell(body,instance_dict,FPort,IpRange):
-    global message
-    for j in instance_dict.keys():
-        if instance_dict[j]['Name'] in body:
-            Target = instance_dict[j]['Name']
-            print(Target)
-            Tergetid = instance_dict[j]['NSG']
-            print(Tergetid)
-            security_group = ec3.SecurityGroup(Tergetid)
-        else:
-            message = "No Target.You're probably misspelled."
-    try:
-        response = security_group.revoke_ingress(
-            DryRun=False,
-            IpPermissions=[
-                {
-                    'FromPort': FPort,
-                    'IpProtocol': 'tcp',
-                    'IpRanges': [
-                        {
-                            'CidrIp': IpRange
-                            },
+    if 'ipadd' in Action:
+        try:
+            response = security_group.authorize_ingress(
+                DryRun=False,
+                IpPermissions=[
+                    {
+                        'FromPort': FPort,
+                        'IpProtocol': 'tcp',
+                        'IpRanges': [
+                            {
+                                'CidrIp': IpRange,
+                                'Description': Description
+                                },
+                                ],
+                                'ToPort': FPort,
+                                }])
+            message = "NSG add Success"
+            logger.info("Event :" + str(response))
+        except:
+            message = "NSG add Failed"
+    elif 'ipdell' in Action :
+        try:
+            response = security_group.revoke_ingress(
+                DryRun=False,
+                IpPermissions=[
+                    {
+                        'FromPort': FPort,
+                        'IpProtocol': 'tcp',
+                        'IpRanges': [
+                            {
+                                'CidrIp': IpRange
+                                },
                             ],
                             'ToPort': FPort
                             }])
-        logger.info(response)
-        message = "NSG dell Success"
-    except:
-        message = "NSG dell Failed"
+            message = "NSG dell Success"
+            logger.info("Event :" + str(response))
+        except:
+            message = "NSG dell Failed"
     return(message)
 
 #メイン処理
@@ -268,13 +273,13 @@ def lambda_handler(event, context):
         Action = "ipadd"
         Bodysplit(Action,body)
         logger.info("Action : ipadd ,Event : Fport" + str(FPort) +", IpRange :" + str(IpRange) + ", Description :" + str(Description))
-        NSG_add(body,instance_dict,FPort,IpRange,Description)
+        NSG_Action(Action,body,instance_dict,FPort,IpRange,Description)
         logger.info("Event : " + str(message))
     elif "ipdell" in body:
         Action = 'ipdell'
         Bodysplit(Action,body)
         logger.info("Action : ipadd ,Event : Fport" + str(FPort) +", IpRange :" + str(IpRange) + ", Description :" + str(Description))
-        NSG_dell(body,instance_dict,FPort,IpRange)
+        NSG_Action(Action,body,instance_dict,FPort,IpRange,Description)
         logger.info("Event : " + str(message))
     else:
         NGmessage()
