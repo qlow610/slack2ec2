@@ -125,9 +125,12 @@ def nsg_list(body, instance_dict):
         }]
     return message
 
-def nsg_add(body, instance_dict, fport, iprange, description):
+def nsg_operation(action, body, instance_dict, fport, iprange, description):
     """
-    Network Security Group ADD IP
+    Operation NetworkSercurityGroup Add/Delete IPaddress
+    action: ADD / Delete
+    body : instance Name
+    instance_dict : func dict_create
     """
     try:
         target_name = [x for x in instance_dict.keys() if x in body]
@@ -135,52 +138,39 @@ def nsg_add(body, instance_dict, fport, iprange, description):
     except IndexError:
         message = "No Target.You're probably misspelled."
         return message
-    try:
-        response = EC2.authorize_security_group_ingress(
-            DryRun=False,
-            GroupId=target_id,
-            IpPermissions=[
-                {
+    if 'ipadd' in action:
+        try:
+            response = EC2.authorize_security_group_ingress(
+                DryRun=False,
+                GroupId=target_id,
+                IpPermissions=[{
                     'FromPort': fport,
                     'IpProtocol': 'tcp',
-                    'IpRanges': [
-                        {
-                            'CidrIp': iprange,
-                            'Description': description
-                            },
-                            ],
-                            'ToPort': fport,
-                            }])
-        message = "NSG add Success"
-    except:
-        message = "NSG add Failed"
-    return message
-
-def nsg_dell(body,instance_dict,fport,iprange):
-    try:
-        target_name = [x for x in instance_dict.keys() if x in body]
-        target_id = instance_dict[target_name[0]]['NSG']
-    except IndexError:
-        message = "No Target.You're probably misspelled."
-        return message
-    try:
-        response = EC2.revoke_security_group_ingress(
-            DryRun=False,
-            GroupId=target_id,
-            IpPermissions=[
-                {
+                    'IpRanges': [{
+                        'CidrIp': iprange,
+                        'Description': description
+                        },],
+                    'ToPort': fport,
+                    }])
+            message = "NSG add Success"
+        except:
+            message = "NSG add Failed"
+    elif 'ipdell' in action:
+        try:
+            response = EC2.revoke_security_group_ingress(
+                DryRun=False,
+                GroupId=target_id,
+                IpPermissions=[{
                     'FromPort': fport,
                     'IpProtocol': 'tcp',
-                    'IpRanges': [
-                        {
-                            'CidrIp': iprange
-                            },
-                            ],
-                            'ToPort': fport
-                            }])
-        message = "NSG dell Success"
-    except:
-        message = "NSG dell Failed"
+                    'IpRanges': [{
+                        'CidrIp': iprange
+                        },],
+                    'ToPort': fport
+                    }])
+            message = "NSG dell Success"
+        except:
+            message = "NSG dell Failed"
     return message
 
 def bodysplit(action, body):
@@ -221,11 +211,11 @@ def lambda_handler(event, context):
     elif 'ipadd' in body:
         action = 'ipadd'
         fport, iprange, description = bodysplit(action, body)
-        message = nsg_add(body, instance_dict, fport, iprange, description)
+        message = nsg_operation(action, body, instance_dict, fport, iprange, description)
     elif 'ipdell' in body:
         action = 'ipdell'
         fport, iprange, description = bodysplit(action, body)
-        message = nsg_dell(body, instance_dict, fport, iprange)
+        message = nsg_operation(action, body, instance_dict, fport, iprange, description)
     else:
         message = "$server (status | help | [server name] start \
         | [server name] stop | ipshow \
