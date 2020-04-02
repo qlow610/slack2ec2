@@ -28,7 +28,7 @@ RUN apt-get update \
     && apt-get -y install --no-install-recommends apt-utils dialog 2>&1 \
     #
     # Verify git, process tools, lsb-release (common in install instructions for CLIs) installed
-    && apt-get -y install git openssh-client less iproute2 procps lsb-release curl \
+    && apt-get -y install git openssh-client less iproute2 procps lsb-release curl groff \
     #
     # Install pylint
     && pip --disable-pip-version-check --no-cache-dir install pylint boto3 \
